@@ -36,7 +36,6 @@ retraction-graph/
     index.html           # Single-file demo UI (HTML + CSS + JS)           (Phase 2d)
   scripts/
     seed_demo.py         # End-to-end demo seeding + narrative moments     (Phase 6)
-  DEMO.md                # Presenter runbook
   README.md              # This file
   .env.example           # Config template
   requirements.txt       # Python dependencies
@@ -143,8 +142,6 @@ python -m http.server 8080 --directory frontend
 # then visit http://localhost:8080
 ```
 
-See [DEMO.md](DEMO.md) for the full presenter runbook.
-
 ---
 
 ## API Routes
@@ -171,14 +168,3 @@ The following are known gaps, acknowledged before the demo, not surprises:
 - **Authentication / authorization** — the API is fully open; `improve()` and `forget()` can be called by anyone. Acceptable for a hackathon demo, not for production.
 
 ---
-
-## Judging Criteria Mapping
-
-| Criterion | This project |
-|---|---|
-| **Potential Impact** | Real, named problem in research integrity; directly usable by journal editors, research-integrity offices, grant reviewers |
-| **Creativity** | Graph-contagion framing not in hackathon example list; multi-hop dependency is novel |
-| **Technical Excellence** | Real multi-source data pipeline (Retraction Watch + Semantic Scholar + Crossref), typed schemas, bounded retries, idempotent ingestion |
-| **Best Use of Cognee** | All 4 lifecycle ops functionally necessary; the core answer (multi-hop dependency) is impossible with plain vector search |
-| **UX** | Graph visualization of "here's how far this lie traveled" is inherently compelling |
-| **Presentation** | Problem → graph-traversal-proof → extension arc; see DEMO.md |

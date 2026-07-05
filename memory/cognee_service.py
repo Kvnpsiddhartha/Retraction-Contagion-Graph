@@ -272,18 +272,78 @@ class CogneeService:
         status is FALSE_POSITIVE or SELF_CORRECTED, which are resolved and
         should stop surfacing here.
 
+        Degradation contract:
+            * If cognee is not installed or not configured (e.g. no LLM API
+              key set), this returns `[]` with a WARNING log rather than
+              raising. The graph, improve, and forget endpoints are all backed
+              by `self._edges` (the local edge store) and are completely
+              unaffected — only natural-language search is unavailable.
+            * If cognee IS available but a transient error occurs mid-query,
+              this raises `MemoryServiceError` so the caller sees a real
+              failure rather than a silent empty result.
+
         Returns:
-            `[]` (not an error) if cognee returns no matches.
+            `[]` (not an error) if cognee returns no matches, or if cognee
+            is not available / not configured.
 
         Raises:
-            MemoryServiceError: on underlying cognee failure, or if cognee
-                is unavailable.
+            MemoryServiceError: only on a transient query-level failure when
+                cognee was already successfully initialised (i.e. _get_ops()
+                succeeded but the actual recall() call failed).
         """
-        ops = self._get_ops()
+        # --- Step 1: resolve the cognee adapter (may fail if not installed) --
+        try:
+            ops = self._get_ops()
+        except MemoryServiceError as exc:
+            # cognee is not installed or the import is broken entirely.
+            # Degrade to empty results rather than surfacing a 503 — the rest
+            # of the demo (graph view, improve, forget) still works fine.
+            logger.warning(
+                "recall: cognee is not available (%s); returning empty results. "
+                "Install cognee and set LLM_API_KEY (or OPENAI_API_KEY) in .env "
+                "to enable natural-language search.",
+                exc,
+            )
+            return []
 
+        # --- Step 2: run the actual query (cognee IS available) --------------
         try:
             raw_results = await ops.recall(query, top_k=max_results)
         except Exception as exc:
+            # Detect configuration errors (missing LLM/embedding API key) by
+            # inspecting the exception type name and message string. We avoid
+            # importing Cognee exception classes directly to stay version-
+            # agnostic — Cognee's own exception hierarchy has changed across
+            # releases, but the error *strings* are stable enough for this.
+            exc_type = type(exc).__name__
+            exc_msg = str(exc)
+            exc_combined = exc_type + exc_msg
+
+            _CREDENTIAL_SIGNALS = (
+                "LLMAPIKeyNotSetError",
+                "EmbeddingException",    # LiteLLM embedding key missing
+                "Missing credentials",
+                "InternalServerError",   # wraps OpenAI 401/422 on bad key
+                "BadRequestError",       # missing model prefix e.g. openai/
+                "LLM Provider NOT provided",
+                "api key",               # generic fallback, case-insensitive
+                "API key",
+                "OPENAI_API_KEY",
+            )
+            is_credential_error = any(sig in exc_combined for sig in _CREDENTIAL_SIGNALS)
+
+            if is_credential_error:
+                logger.warning(
+                    "recall: cognee LLM/embedding API key is not configured "
+                    "(%s: %s); returning empty results. "
+                    "Set OPENAI_API_KEY (or LLM_API_KEY) in your .env file "
+                    "to enable natural-language search.",
+                    exc_type,
+                    exc_msg[:200],  # truncate very long embedding-engine error strings
+                )
+                return []
+            # Any other failure (network error, model quota, genuine bug)
+            # is a real transient fault — raise so the caller sees it.
             raise MemoryServiceError(
                 f"cognee recall failed for query={query!r}", cause=exc, operation="recall"
             ) from exc

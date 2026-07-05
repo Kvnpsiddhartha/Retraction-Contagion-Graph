@@ -75,6 +75,15 @@ _DATE_FORMATS = (
 
 _FALLBACK_REASON_RAW = "Unspecified"
 
+# Known literal placeholder strings the Retraction Watch CSV uses when a
+# paper has no DOI. Spotted in real exports: "Unavailable", "unavailable",
+# "N/A", "None", etc. Treated as missing-DOI (counted against
+# `n_missing_doi`, not `n_malformed`) so they don't flood the WARNING log
+# with hundreds of lines that are purely expected data quality in the CSV.
+_PLACEHOLDER_DOI_VALUES: frozenset[str] = frozenset(
+    {"unavailable", "n/a", "na", "none", "null", "-", "not available", "not applicable"}
+)
+
 _REASON_KEYWORDS: tuple[tuple[str, RetractionReason], ...] = (
     ("fabricat", RetractionReason.FABRICATION),
     ("falsif", RetractionReason.FALSIFIED_DATA),
@@ -313,6 +322,14 @@ def parse_retraction_watch_csv(csv_path: Path) -> list[RetractedPaper]:
 
             raw_doi = (row.get(columns.get("doi", ""), "") or "").strip()
             if not raw_doi:
+                n_missing_doi += 1
+                continue
+
+            # Some rows use a literal placeholder string instead of a real
+            # DOI — treat these the same as a missing DOI rather than
+            # logging a WARNING for each one (they are expected, not bugs).
+            if raw_doi.lower() in _PLACEHOLDER_DOI_VALUES:
+                logger.debug("Row %d: DOI is a known placeholder %r; treating as missing.", n_rows, raw_doi)
                 n_missing_doi += 1
                 continue
 
