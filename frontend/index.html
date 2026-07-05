@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Retraction Contagion Graph</title>
+
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-border: #2a2f3a;
+    --text: #eef1f6;
+    --text-dim: #a3aab8;
+    --accent: #5b8cff;
+    --accent-dim: #2e3d63;
+
+    --amber: #d99a2b;
+    --amber-bg: #3a2f14;
+    --red: #e5484d;
+    --red-bg: #3a1518;
+    --gray: #8b93a3;
+    --gray-bg: #24272e;
+    --green: #3dbb6b;
+    --green-bg: #12301f;
+
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 18px;
+    line-height: 1.5;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+
+  header.banner {
+    background: linear-gradient(135deg, #1a2036, #171a21);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    margin-bottom: 32px;
+  }
+
+  header.banner h1 {
+    margin: 0 0 8px;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+  }
+
+  header.banner p {
+    margin: 0;
+    color: var(--text-dim);
+    font-size: 19px;
+  }
+
+  section {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+
+  section h2 {
+    margin: 0 0 16px;
+    font-size: 20px;
+  }
+
+  .search-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  input[type="text"], input[type="number"] {
+    background: #0c0e12;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 17px;
+    flex: 1 1 320px;
+  }
+
+  input[type="number"] { flex: 0 0 100px; }
+
+  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 22px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  button:hover { opacity: 0.88; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  button.secondary {
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+  }
+
+  button.small {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+
+  .icon-btn {
+    background: var(--panel-border);
+    padding: 6px 12px;
+    font-size: 16px;
+  }
+
+  .icon-btn.thumbs-up:hover { background: var(--green-bg); }
+  .icon-btn.thumbs-down:hover { background: var(--red-bg); }
+
+  .status-line {
+    margin-top: 10px;
+    color: var(--text-dim);
+    font-size: 15px;
+  }
+
+  .error-banner {
+    background: var(--red-bg);
+    border: 1px solid var(--red);
+    color: #ffd7d8;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-top: 14px;
+    font-size: 15px;
+    display: none;
+  }
+
+  .error-banner.visible { display: block; }
+
+  .persistent-banner {
+    background: var(--red-bg);
+    border: 1px solid var(--red);
+    color: #ffd7d8;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    font-size: 16px;
+    display: none;
+  }
+
+  .persistent-banner.visible { display: block; }
+
+  .loading {
+    color: var(--text-dim);
+    font-size: 16px;
+    margin-top: 12px;
+    display: none;
+  }
+
+  .loading.visible { display: block; }
+
+  .empty-state {
+    color: var(--text-dim);
+    font-size: 16px;
+    padding: 20px 0;
+  }
+
+  .card {
+    background: #12141a;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+  }
+
+  .card:last-child { margin-bottom: 0; }
+
+  .card .doc-id {
+    color: var(--text-dim);
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    margin-bottom: 6px;
+  }
+
+  .card .summary {
+    font-size: 17px;
+    margin-bottom: 4px;
+  }
+
+  .edge-list {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--panel-border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .edge-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 15px;
+  }
+
+  .edge-relation {
+    font-weight: 600;
+  }
+
+  .badge {
+    background: var(--panel-border);
+    color: var(--text-dim);
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 13px;
+  }
+
+  .pill {
+    border-radius: 999px;
+    padding: 3px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .pill-flagged { background: var(--amber-bg); color: var(--amber); }
+  .pill-confirmed { background: var(--red-bg); color: var(--red); }
+  .pill-false_positive { background: var(--gray-bg); color: var(--gray); }
+  .pill-self_corrected { background: var(--green-bg); color: var(--green); }
+
+  .edge-actions {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+  }
+
+  .evidence {
+    width: 100%;
+    color: var(--text-dim);
+    font-size: 14px;
+    font-style: italic;
+    margin-top: 2px;
+  }
+
+  .graph-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  svg#graph-svg {
+    width: 100%;
+    max-width: 700px;
+    height: auto;
+    background: #0c0e12;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+  }
+
+  .legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-top: 40px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <header class="banner">
+    <h1>Retraction Contagion Graph</h1>
+    <p>Retraction Watch tells you a paper was retracted. This tells you which other papers are still quietly standing on it.</p>
+  </header>
+
+  <div id="api-down-banner" class="persistent-banner">
+    Can't reach the API at <span id="api-base-label"></span> — is the backend running?
+  </div>
+
+  <section id="recall-section">
+    <h2>Ask a question</h2>
+    <div class="search-row">
+      <input type="text" id="recall-query" placeholder="e.g. Which papers still rely on the retracted 2012 finding?" />
+      <input type="number" id="recall-max" placeholder="max" min="1" max="100" value="10" title="Max results" />
+      <button id="recall-btn">Ask</button>
+    </div>
+    <div id="recall-loading" class="loading">Loading…</div>
+    <div id="recall-error" class="error-banner"></div>
+    <div id="recall-results" style="margin-top: 18px;"></div>
+  </section>
+
+  <section id="graph-section">
+    <h2>Citation contagion graph</h2>
+    <div class="search-row">
+      <input type="text" id="graph-doi" placeholder="Enter a DOI, e.g. 10.1000/xyz123" />
+      <button id="graph-btn">Show graph</button>
+    </div>
+    <div id="graph-loading" class="loading">Loading…</div>
+    <div id="graph-error" class="error-banner"></div>
+    <div id="graph-output" style="margin-top: 18px;"></div>
+  </section>
+
+  <footer>Retraction Contagion Graph — demo build</footer>
+</div>
+
+<script>
+"use strict";
+
+// Single edit point to repoint the demo at a different backend if needed.
+const API_BASE = "http://localhost:8000";
+
+// ---------------------------------------------------------------------
+// API layer — pure functions, no DOM access, independently unit-testable.
+// Each throws an Error with a human-readable `.message` on failure so
+// callers can render it directly in an error banner.
+// ---------------------------------------------------------------------
+
+async function apiRequest(path, options) {
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, options);
+  } catch (networkErr) {
+    const err = new Error(
+      `Can't reach the API at ${API_BASE} — is the backend running?`
+    );
+    err.isNetworkError = true;
+    throw err;
+  }
+
+  if (!response.ok) {
+    let detail = "";
+    try {
+      const body = await response.json();
+      detail = body && (body.detail || body.message) ? (body.detail || body.message) : "";
+    } catch (_) {
+      // response body wasn't JSON / was empty — fall back to status text
+    }
+    throw new Error(
+      `Request to ${path} failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`
+    );
+  }
+
+  return response.json();
+}
+
+async function checkHealth() {
+  return apiRequest("/health", { method: "GET" });
+}
+
+async function recall(query, maxResults) {
+  const body = { query };
+  if (maxResults !== undefined && maxResults !== null && !Number.isNaN(maxResults)) {
+    body.max_results = maxResults;
+  }
+  return apiRequest("/api/recall", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function improve(edgeId, verdict, note) {
+  const body = { edge_id: edgeId, verdict };
+  if (note) body.reviewer_note = note;
+  return apiRequest("/api/improve", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function forget(edgeId, reason) {
+  return apiRequest("/api/forget", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ edge_id: edgeId, reason }),
+  });
+}
+
+async function fetchGraph(doi) {
+  return apiRequest(`/api/graph/${encodeURIComponent(doi)}`, { method: "GET" });
+}
+
+// ---------------------------------------------------------------------
+// Rendering — DOM-mutating functions, kept separate from the API layer.
+// ---------------------------------------------------------------------
+
+const STATUS_LABEL = {
+  flagged: "Flagged",
+  confirmed: "Confirmed",
+  false_positive: "False positive",
+  self_corrected: "Self-corrected",
+};
+
+function pct(confidence) {
+  const n = Number(confidence);
+  if (Number.isNaN(n)) return "—";
+  return `${Math.round(n * 100)}%`;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str == null ? "" : String(str);
+  return div.innerHTML;
+}
+
+function renderEdgePill(edge) {
+  const label = STATUS_LABEL[edge.status] || edge.status;
+  return `<span class="pill pill-${edge.status}" data-edge-id="${escapeHtml(edge.id)}" data-role="pill">${escapeHtml(label)}</span>`;
+}
+
+function renderEdgeRow(edge) {
+  const canReview = edge.status === "flagged";
+  const canForget = edge.status === "confirmed" || edge.status === "flagged";
+
+  const actions = [];
+  if (canReview) {
+    actions.push(
+      `<button class="icon-btn thumbs-up small" data-action="confirm" data-edge-id="${escapeHtml(edge.id)}" title="Confirm this dependency">👍</button>`
+    );
+    actions.push(
+      `<button class="icon-btn thumbs-down small" data-action="reject" data-edge-id="${escapeHtml(edge.id)}" title="Mark as false positive">👎</button>`
+    );
+  }
+  if (canForget) {
+    actions.push(
+      `<button class="secondary small" data-action="forget" data-edge-id="${escapeHtml(edge.id)}">Mark self-corrected</button>`
+    );
+  }
+
+  const evidence = edge.evidence_text
+    ? `<div class="evidence">“${escapeHtml(edge.evidence_text)}”</div>`
+    : "";
+
+  return `
+    <div class="edge-row" data-edge-row="${escapeHtml(edge.id)}">
+      <span class="edge-relation">${escapeHtml(edge.relation)}</span>
+      <span class="badge">${pct(edge.confidence)} confidence</span>
+      <span class="badge">${escapeHtml(edge.hop_depth)} hop${edge.hop_depth === 1 ? "" : "s"}</span>
+      ${renderEdgePill(edge)}
+      <div class="edge-actions" data-actions="${escapeHtml(edge.id)}">${actions.join("")}</div>
+      ${evidence}
+    </div>
+  `;
+}
+
+function renderResultCard(item) {
+  const edgesHtml =
+    item.related_edges && item.related_edges.length > 0
+      ? `<div class="edge-list">${item.related_edges.map(renderEdgeRow).join("")}</div>`
+      : "";
+
+  return `
+    <div class="card" data-doc-id="${escapeHtml(item.doc_id)}">
+      <div class="doc-id">${escapeHtml(item.doc_id)}</div>
+      <div class="summary">${escapeHtml(item.summary)}</div>
+      ${edgesHtml}
+    </div>
+  `;
+}
+
+function renderResults(data) {
+  const container = document.getElementById("recall-results");
+  if (!data.results || data.results.length === 0) {
+    container.innerHTML = `<div class="empty-state">No dependency contagion found for this query.</div>`;
+    return;
+  }
+  container.innerHTML = data.results.map(renderResultCard).join("");
+}
+
+// Radial graph layout: root in the center, direct citers on an inner ring,
+// second-hop (and beyond) citers on progressively outer rings. Deliberately
+// simple (no force simulation) so it renders identically every time and
+// stays readable live on a projector.
+function renderGraph(data) {
+  const container = document.getElementById("graph-output");
+
+  if (!data.nodes || data.nodes.length === 0) {
+    container.innerHTML = `<div class="empty-state">No graph data returned for this DOI.</div>`;
+    return;
+  }
+
+  if (data.nodes.length === 1 && (!data.edges || data.edges.length === 0)) {
+    container.innerHTML = `
+      <div class="graph-wrap">
+        ${buildGraphSvg(data)}
+        <div class="empty-state">No citation contagion detected yet.</div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `<div class="graph-wrap">${buildGraphSvg(data)}${buildLegend()}</div>`;
+}
+
+function buildLegend() {
+  return `
+    <div class="legend">
+      <span class="legend-item"><span class="legend-dot" style="background:#e5484d"></span>Retracted paper</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#5b8cff"></span>Citing paper</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#3dbb6b"></span>Self-corrected</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#8b93a3"></span>False positive</span>
+    </div>
+  `;
+}
+
+function nodeColor(node) {
+  if (node.status === "self_corrected") return "#3dbb6b";
+  if (node.status === "false_positive") return "#8b93a3";
+  if (node.node_type === "retracted") return "#e5484d";
+  return "#5b8cff";
+}
+
+function buildGraphSvg(data) {
+  const width = 700;
+  const height = 700;
+  const cx = width / 2;
+  const cy = height / 2;
+
+  const root = data.nodes.find((n) => n.doi === data.root_doi) || data.nodes[0];
+  const others = data.nodes.filter((n) => n.doi !== root.doi);
+
+  // Bucket non-root nodes by hop depth using the edge list: a node is
+  // "hop 1" if directly connected to root, "hop 2" if connected only via
+  // a hop-1 node, etc. Falls back to hop 1 for anything we can't place.
+  const edgesByFrom = new Map();
+  const edgesByTo = new Map();
+  (data.edges || []).forEach((e) => {
+    if (!edgesByFrom.has(e.from_doi)) edgesByFrom.set(e.from_doi, []);
+    edgesByFrom.get(e.from_doi).push(e);
+    if (!edgesByTo.has(e.to_doi)) edgesByTo.set(e.to_doi, []);
+    edgesByTo.get(e.to_doi).push(e);
+  });
+
+  const hopOf = new Map();
+  hopOf.set(root.doi, 0);
+  const queue = [root.doi];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    const currentHop = hopOf.get(current);
+    const neighbors = [
+      ...(edgesByFrom.get(current) || []).map((e) => e.to_doi),
+      ...(edgesByTo.get(current) || []).map((e) => e.from_doi),
+    ];
+    neighbors.forEach((doi) => {
+      if (!hopOf.has(doi)) {
+        hopOf.set(doi, currentHop + 1);
+        queue.push(doi);
+      }
+    });
+  }
+
+  const rings = new Map(); // hop depth -> [nodes]
+  others.forEach((node) => {
+    const hop = hopOf.get(node.doi) || 1;
+    if (!rings.has(hop)) rings.set(hop, []);
+    rings.get(hop).push(node);
+  });
+
+  const maxHop = Math.max(1, ...Array.from(rings.keys()));
+  const ringSpacing = (Math.min(width, height) / 2 - 80) / maxHop;
+
+  const positions = new Map();
+  positions.set(root.doi, { x: cx, y: cy });
+
+  Array.from(rings.keys())
+    .sort((a, b) => a - b)
+    .forEach((hop) => {
+      const nodesInRing = rings.get(hop);
+      const radius = ringSpacing * hop + 60;
+      const angleStep = (2 * Math.PI) / nodesInRing.length;
+      nodesInRing.forEach((node, i) => {
+        const angle = i * angleStep - Math.PI / 2;
+        positions.set(node.doi, {
+          x: cx + radius * Math.cos(angle),
+          y: cy + radius * Math.sin(angle),
+        });
+      });
+    });
+
+  const edgeLines = (data.edges || [])
+    .map((e) => {
+      const from = positions.get(e.from_doi);
+      const to = positions.get(e.to_doi);
+      if (!from || !to) return "";
+      const midX = (from.x + to.x) / 2;
+      const midY = (from.y + to.y) / 2;
+      return `
+        <line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="#3a3f4b" stroke-width="1.5" />
+        <text x="${midX}" y="${midY}" fill="#a3aab8" font-size="11" text-anchor="middle">${escapeHtml(e.relation)}</text>
+      `;
+    })
+    .join("");
+
+  const nodeCircles = data.nodes
+    .map((node) => {
+      const pos = positions.get(node.doi) || { x: cx, y: cy };
+      const isRoot = node.doi === root.doi;
+      const radius = isRoot ? 26 : 16;
+      const label = node.title && node.title.length > 24 ? `${node.title.slice(0, 24)}…` : node.title || node.doi;
+      return `
+        <circle cx="${pos.x}" cy="${pos.y}" r="${radius}" fill="${nodeColor(node)}" stroke="#0c0e12" stroke-width="2" />
+        <text x="${pos.x}" y="${pos.y + radius + 14}" fill="#eef1f6" font-size="12" text-anchor="middle">${escapeHtml(label)}</text>
+      `;
+    })
+    .join("");
+
+  return `
+    <svg id="graph-svg" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      ${edgeLines}
+      ${nodeCircles}
+    </svg>
+  `;
+}
+
+// ---------------------------------------------------------------------
+// UI wiring — loading states, error banners, event delegation.
+// ---------------------------------------------------------------------
+
+function showError(elId, message) {
+  const el = document.getElementById(elId);
+  el.textContent = message;
+  el.classList.add("visible");
+}
+
+function clearError(elId) {
+  const el = document.getElementById(elId);
+  el.textContent = "";
+  el.classList.remove("visible");
+}
+
+function setLoading(elId, isLoading) {
+  document.getElementById(elId).classList.toggle("visible", isLoading);
+}
+
+function showApiDownBanner() {
+  document.getElementById("api-base-label").textContent = API_BASE;
+  document.getElementById("api-down-banner").classList.add("visible");
+}
+
+function hideApiDownBanner() {
+  document.getElementById("api-down-banner").classList.remove("visible");
+}
+
+async function handleRecallSubmit() {
+  const queryInput = document.getElementById("recall-query");
+  const maxInput = document.getElementById("recall-max");
+  const query = queryInput.value.trim();
+
+  clearError("recall-error");
+
+  if (!query) {
+    showError("recall-error", "Enter a question before asking.");
+    return;
+  }
+
+  const maxResults = maxInput.value ? parseInt(maxInput.value, 10) : undefined;
+
+  setLoading("recall-loading", true);
+  document.getElementById("recall-btn").disabled = true;
+  try {
+    const data = await recall(query, maxResults);
+    hideApiDownBanner();
+    renderResults(data);
+  } catch (err) {
+    if (err.isNetworkError) showApiDownBanner();
+    showError("recall-error", err.message);
+    document.getElementById("recall-results").innerHTML = "";
+  } finally {
+    setLoading("recall-loading", false);
+    document.getElementById("recall-btn").disabled = false;
+  }
+}
+
+async function handleGraphSubmit() {
+  const doiInput = document.getElementById("graph-doi");
+  const doi = doiInput.value.trim();
+
+  clearError("graph-error");
+
+  if (!doi) {
+    showError("graph-error", "Enter a DOI before requesting the graph.");
+    return;
+  }
+
+  setLoading("graph-loading", true);
+  document.getElementById("graph-btn").disabled = true;
+  try {
+    const data = await fetchGraph(doi);
+    hideApiDownBanner();
+    renderGraph(data);
+  } catch (err) {
+    if (err.isNetworkError) showApiDownBanner();
+    showError("graph-error", err.message);
+    document.getElementById("graph-output").innerHTML = "";
+  } finally {
+    setLoading("graph-loading", false);
+    document.getElementById("graph-btn").disabled = false;
+  }
+}
+
+// Tracks edge ids with an in-flight improve/forget request, so a rapid
+// double-click on 👍/👎 (or "Mark self-corrected") can't double-submit.
+const pendingEdgeIds = new Set();
+
+// Small self-contained fallback for CSS.escape: some environments (older
+// browsers, some embedded webviews) don't implement it, and this file is
+// deliberately dependency-free, so we don't rely on it being present.
+function escapeForSelector(value) {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+    return CSS.escape(value);
+  }
+  return String(value).replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`);
+}
+
+function setEdgeActionsDisabled(edgeId, disabled) {
+  const actionsEl = document.querySelector(`[data-actions="${escapeForSelector(edgeId)}"]`);
+  if (!actionsEl) return;
+  actionsEl.querySelectorAll("button").forEach((btn) => {
+    btn.disabled = disabled;
+  });
+}
+
+function updateEdgePillInPlace(edge) {
+  const row = document.querySelector(`[data-edge-row="${escapeForSelector(edge.id)}"]`);
+  if (!row) return;
+
+  const pillEl = row.querySelector('[data-role="pill"]');
+  if (pillEl) {
+    pillEl.outerHTML = renderEdgePill(edge);
+  }
+
+  const actionsEl = row.querySelector(`[data-actions="${escapeForSelector(edge.id)}"]`);
+  if (actionsEl) {
+    const canReview = edge.status === "flagged";
+    const canForget = edge.status === "confirmed" || edge.status === "flagged";
+    const actions = [];
+    if (canReview) {
+      actions.push(
+        `<button class="icon-btn thumbs-up small" data-action="confirm" data-edge-id="${escapeHtml(edge.id)}" title="Confirm this dependency">👍</button>`
+      );
+      actions.push(
+        `<button class="icon-btn thumbs-down small" data-action="reject" data-edge-id="${escapeHtml(edge.id)}" title="Mark as false positive">👎</button>`
+      );
+    }
+    if (canForget) {
+      actions.push(
+        `<button class="secondary small" data-action="forget" data-edge-id="${escapeHtml(edge.id)}">Mark self-corrected</button>`
+      );
+    }
+    actionsEl.innerHTML = actions.join("");
+  }
+}
+
+async function handleEdgeAction(action, edgeId) {
+  if (pendingEdgeIds.has(edgeId)) return; // already in flight
+  pendingEdgeIds.add(edgeId);
+  setEdgeActionsDisabled(edgeId, true);
+
+  try {
+    let updatedEdge;
+    if (action === "confirm") {
+      updatedEdge = await improve(edgeId, "confirmed");
+    } else if (action === "reject") {
+      updatedEdge = await improve(edgeId, "false_positive");
+    } else if (action === "forget") {
+      const reason = prompt("Why is this edge self-corrected?");
+      if (reason === null) {
+        // user cancelled the prompt — no request sent
+        return;
+      }
+      const trimmedReason = reason.trim();
+      if (!trimmedReason) {
+        showError("recall-error", "A reason is required to mark an edge as self-corrected.");
+        return;
+      }
+      updatedEdge = await forget(edgeId, trimmedReason);
+    }
+    hideApiDownBanner();
+    updateEdgePillInPlace(updatedEdge);
+  } catch (err) {
+    if (err.isNetworkError) showApiDownBanner();
+    showError("recall-error", err.message);
+  } finally {
+    pendingEdgeIds.delete(edgeId);
+    setEdgeActionsDisabled(edgeId, false);
+  }
+}
+
+function wireEvents() {
+  document.getElementById("recall-btn").addEventListener("click", handleRecallSubmit);
+  document.getElementById("recall-query").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") handleRecallSubmit();
+  });
+
+  document.getElementById("graph-btn").addEventListener("click", handleGraphSubmit);
+  document.getElementById("graph-doi").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") handleGraphSubmit();
+  });
+
+  // Event delegation for dynamically-rendered edge action buttons.
+  document.getElementById("recall-results").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+    handleEdgeAction(btn.dataset.action, btn.dataset.edgeId);
+  });
+}
+
+async function initialHealthCheck() {
+  try {
+    await checkHealth();
+    hideApiDownBanner();
+  } catch (err) {
+    if (err.isNetworkError) showApiDownBanner();
+  }
+}
+
+wireEvents();
+initialHealthCheck();
+</script>
+
+</body>
+</html>

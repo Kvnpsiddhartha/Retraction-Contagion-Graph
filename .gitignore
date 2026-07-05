@@ -1,0 +1,91 @@
+# =============================================================================
+# Retraction Contagion Graph — .gitignore
+# =============================================================================
+
+# --- Python bytecode & caches ------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# --- Virtual environments ----------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+.env.local
+
+# --- Secrets & local config (keep .env.example, ignore the real .env) --------
+.env
+*.env.local
+*.env.*.local
+
+# --- Project runtime data & caches -------------------------------------------
+# Retraction Watch CSV download cache (downloaded on first run; ~10-15 MB)
+.cache/
+*.csv.part
+
+# Cognee's own data directory (SQLite, vector indices, etc.)
+# Keep this out of git — it's a build artifact, not source.
+.cognee_system/
+cognee_data/
+cognee_db/
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Testing & coverage -------------------------------------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.tox/
+.nox/
+
+# --- Build & dist artifacts ---------------------------------------------------
+dist/
+build/
+*.egg-info/
+*.egg
+MANIFEST
+.eggs/
+
+# --- Type checkers & linters --------------------------------------------------
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pytype/
+
+# --- IDEs & editors -----------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Jupyter (if ever used for exploration) -----------------------------------
+.ipynb_checkpoints/
+*.ipynb
+
+# --- Node / front-end tooling (no build step in this project, but guard it) --
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Logs --------------------------------------------------------------------
+*.log
+logs/
+
+# --- Temporary files ---------------------------------------------------------
+*.tmp
+*.bak
+*.orig
